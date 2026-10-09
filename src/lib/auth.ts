@@ -5,9 +5,18 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 const COOKIE = "ps_session";
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || "dev-secret-change-me",
-);
+// Resolved lazily (not at import) so `next build` works without the secret.
+let secretBytes: Uint8Array | null = null;
+function secret(): Uint8Array {
+  if (!secretBytes) {
+    const raw = process.env.JWT_SECRET || "";
+    if (raw.length < 32) {
+      throw new Error("JWT_SECRET must be set to at least 32 characters");
+    }
+    secretBytes = new TextEncoder().encode(raw);
+  }
+  return secretBytes;
+}
 
 export function hashPassword(plain: string) {
   return bcrypt.hash(plain, 10);
@@ -18,13 +27,17 @@ export function verifyPassword(plain: string, hash: string) {
 }
 
 export async function createSession(userId: string) {
-  const token = await new SignJWT({ sub: userId })
+  const { sessionVersion } = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { sessionVersion: true },
+  });
+  const token = await new SignJWT({ sub: userId, ver: sessionVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("30d")
-    .sign(secret);
+    .sign(secret());
 
-  cookies().set(COOKIE, token, {
+  (await cookies()).set(COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
@@ -33,16 +46,19 @@ export async function createSession(userId: string) {
   });
 }
 
-export function destroySession() {
-  cookies().set(COOKIE, "", { path: "/", maxAge: 0 });
+export async function destroySession() {
+  (await cookies()).set(COOKIE, "", { path: "/", maxAge: 0 });
 }
 
-async function getTokenUserId(): Promise<string | null> {
-  const raw = cookies().get(COOKIE)?.value;
+async function getToken(): Promise<{ id: string; ver: number } | null> {
+  const raw = (await cookies()).get(COOKIE)?.value;
   if (!raw) return null;
+  const key = secret(); // outside the try: a missing secret must fail loudly
   try {
-    const { payload } = await jwtVerify(raw, secret);
-    return typeof payload.sub === "string" ? payload.sub : null;
+    const { payload } = await jwtVerify(raw, key);
+    return typeof payload.sub === "string"
+      ? { id: payload.sub, ver: typeof payload.ver === "number" ? payload.ver : 0 }
+      : null;
   } catch {
     return null;
   }
@@ -57,12 +73,27 @@ export async function getSessionUserId(): Promise<string | null> {
 }
 
 export async function getCurrentUser() {
-  const id = await getTokenUserId();
-  if (!id) return null;
-  return prisma.user.findFirst({
-    select: { id: true, email: true, name: true, role: true, storageQuotaMb: true },
-    where: { id, status: "ACTIVE" },
+  const token = await getToken();
+  if (!token) return null;
+  const user = await prisma.user.findFirst({
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      storageQuotaMb: true,
+      sessionVersion: true,
+    },
+    where: { id: token.id, status: "ACTIVE" },
   });
+  if (!user) return null;
+  const { sessionVersion, ...rest } = user;
+  return sessionVersion === token.ver ? rest : null;
+}
+
+/** Prisma update data that invalidates every existing session of the user. */
+export function revokeSessionsData() {
+  return { sessionVersion: { increment: 1 } };
 }
 
 export async function getAdminUser() {

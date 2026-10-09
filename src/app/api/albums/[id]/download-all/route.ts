@@ -8,8 +8,9 @@ export const maxDuration = 600;
 
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } },
+  { params: paramsP }: { params: Promise<{ id: string }> },
 ) {
+  const params = await paramsP;
   const userId = await getSessionUserId();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 

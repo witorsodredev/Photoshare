@@ -27,8 +27,9 @@ function serialize(album: {
 
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } },
+  { params: paramsP }: { params: Promise<{ id: string }> },
 ) {
+  const params = await paramsP;
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
@@ -52,8 +53,9 @@ export async function GET(
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } },
+  { params: paramsP }: { params: Promise<{ id: string }> },
 ) {
+  const params = await paramsP;
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
@@ -67,6 +69,12 @@ export async function PATCH(
   if (typeof body.description === "string")
     data.description = body.description.trim() || null;
   if (typeof body.allowDownload === "boolean") data.allowDownload = body.allowDownload;
+  if (body.isPublic === true && album.blockedAt) {
+    return NextResponse.json(
+      { error: "Este álbum foi retirado do ar pela moderação e não pode ser publicado." },
+      { status: 403 },
+    );
+  }
   if (typeof body.isPublic === "boolean") {
     data.isPublic = body.isPublic;
     if (body.isPublic && !album.shareToken) data.shareToken = shareToken();
@@ -79,8 +87,9 @@ export async function PATCH(
 
 export async function DELETE(
   _req: Request,
-  { params }: { params: { id: string } },
+  { params: paramsP }: { params: Promise<{ id: string }> },
 ) {
+  const params = await paramsP;
   const userId = await getSessionUserId();
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 

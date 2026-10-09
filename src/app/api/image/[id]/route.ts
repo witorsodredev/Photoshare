@@ -7,8 +7,9 @@ export const runtime = "nodejs";
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } },
+  { params: paramsP }: { params: Promise<{ id: string }> },
 ) {
+  const params = await paramsP;
   const userId = await getSessionUserId();
   const photo = await canViewPhoto(params.id, userId);
   if (!photo) return new Response("Not found", { status: 404 });

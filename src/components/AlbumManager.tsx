@@ -33,10 +33,13 @@ export default function AlbumManager({
   album: initialAlbum,
   photos: initialPhotos,
   origin,
+  blockedReason,
 }: {
   album: ManagedAlbum;
   photos: ManagedPhoto[];
   origin: string;
+  /** Set when moderation took the album down (it can't be published). */
+  blockedReason: string | null;
 }) {
   const router = useRouter();
   const [album, setAlbum] = useState(initialAlbum);
@@ -178,16 +181,25 @@ export default function AlbumManager({
               Publique um link para o cliente ver e baixar as fotos.
             </p>
           </div>
-          <label className="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="h-4 w-4 accent-blue-600"
-              checked={album.isPublic}
-              onChange={(e) => patchAlbum({ isPublic: e.target.checked })}
-            />
-            Link público ativo
-          </label>
+          {!blockedReason && (
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-blue-600"
+                checked={album.isPublic}
+                onChange={(e) => patchAlbum({ isPublic: e.target.checked })}
+              />
+              Link público ativo
+            </label>
+          )}
         </div>
+
+        {blockedReason && (
+          <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            Este álbum foi retirado do ar pela moderação após uma denúncia ({blockedReason})
+            e não pode ser publicado. Se acha que foi um engano, fale com o administrador.
+          </p>
+        )}
 
         {album.isPublic && (
           <div className="mt-4 space-y-3">

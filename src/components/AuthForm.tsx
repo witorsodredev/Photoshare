@@ -2,28 +2,51 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Captcha, { type CaptchaHandle } from "@/components/Captcha";
 
-export default function AuthForm({ mode }: { mode: "login" | "register" }) {
+/** Only same-site paths: "?next=https://evil.com" must not redirect away. */
+function safeNext(raw: string | null): string {
+  return raw && raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/\\")
+    ? raw
+    : "/workspace";
+}
+
+export default function AuthForm({
+  mode,
+  captchaSiteKey,
+  mailEnabled,
+}: {
+  mode: "login" | "register";
+  captchaSiteKey: string | null;
+  mailEnabled: boolean;
+}) {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/workspace";
+  const next = safeNext(params.get("next"));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const [done, setDone] = useState<null | { verifyEmail: boolean }>(null);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const captchaRef = useRef<CaptchaHandle>(null);
 
   const isRegister = mode === "register";
 
-  if (pending) {
+  if (done) {
     return (
       <div className="mx-auto w-full max-w-sm">
         <Link href="/" className="text-lg font-semibold tracking-tight">
           Photo<span className="text-blue-500">Share</span>
         </Link>
         <h1 className="mt-8 text-2xl font-bold">Cadastro recebido</h1>
+        {done.verifyEmail && (
+          <p className="mt-2 text-sm text-gray-300">
+            Enviamos um link para o seu e-mail. Abra-o para confirmar o endereço.
+          </p>
+        )}
         <p className="mt-2 text-sm text-gray-400">
-          Sua conta foi criada e está aguardando aprovação do administrador.
-          Assim que ela for ativada, você poderá entrar normalmente.
+          Sua conta está aguardando aprovação do administrador. Assim que ela for
+          ativada, você poderá entrar normalmente.
         </p>
         <Link href="/login" className="btn-ghost mt-6 w-full py-2.5">
           Ir para o login
@@ -34,26 +57,36 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (captchaSiteKey && !captcha) {
+      setError("Confirme que você não é um robô.");
+      return;
+    }
     setLoading(true);
     setError(null);
     const form = new FormData(e.currentTarget);
-    const payload = Object.fromEntries(form.entries());
+    const payload = {
+      name: form.get("name") ?? undefined,
+      email: form.get("email"),
+      password: form.get("password"),
+      acceptTerms: isRegister ? form.get("acceptTerms") === "on" : undefined,
+      captcha: captcha ?? undefined,
+    };
 
     const res = await fetch(`/api/auth/${mode}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+    const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       setError(data.error || "Algo deu errado. Tente novamente.");
       setLoading(false);
+      captchaRef.current?.reset();
       return;
     }
-    const data = await res.json().catch(() => ({}));
     if (data.pending) {
-      setPending(true);
+      setDone({ verifyEmail: Boolean(data.verifyEmail) });
       setLoading(false);
       return;
     }
@@ -107,9 +140,19 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
           />
         </div>
         <div>
-          <label className="label" htmlFor="password">
-            Senha
-          </label>
+          <div className="flex items-baseline justify-between">
+            <label className="label" htmlFor="password">
+              Senha
+            </label>
+            {!isRegister && (
+              <Link
+                href="/esqueci-senha"
+                className="mb-1.5 text-xs text-blue-400 hover:underline"
+              >
+                {mailEnabled ? "Esqueci minha senha" : "Esqueceu a senha?"}
+              </Link>
+            )}
+          </div>
           <input
             id="password"
             name="password"
@@ -121,6 +164,29 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
             autoComplete={isRegister ? "new-password" : "current-password"}
           />
         </div>
+
+        {isRegister && (
+          <label className="flex items-start gap-2 text-sm text-gray-300">
+            <input type="checkbox" name="acceptTerms" required className="mt-1" />
+            <span>
+              Li e aceito os{" "}
+              <Link href="/termos" target="_blank" className="text-blue-400 hover:underline">
+                Termos de Uso
+              </Link>{" "}
+              e a{" "}
+              <Link
+                href="/privacidade"
+                target="_blank"
+                className="text-blue-400 hover:underline"
+              >
+                Política de Privacidade
+              </Link>
+              .
+            </span>
+          </label>
+        )}
+
+        <Captcha ref={captchaRef} siteKey={captchaSiteKey} onToken={setCaptcha} />
 
         {error && (
           <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">

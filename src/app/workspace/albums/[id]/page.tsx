@@ -5,14 +5,16 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { appBaseUrl } from "@/lib/util";
 import AlbumManager from "@/components/AlbumManager";
+import { REPORT_REASONS, type ReportReason } from "@/lib/reports";
 
 export const dynamic = "force-dynamic";
 
 export default async function AlbumPage({
-  params,
+  params: paramsP,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const params = await paramsP;
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -24,7 +26,7 @@ export default async function AlbumPage({
   });
   if (!album) notFound();
 
-  const h = headers();
+  const h = await headers();
   const origin =
     appBaseUrl("") ||
     `${h.get("x-forwarded-proto") || "http"}://${h.get("host") || "localhost:3000"}`;
@@ -52,6 +54,11 @@ export default async function AlbumPage({
             height: p.height,
           }))}
           origin={origin}
+          blockedReason={
+            album.blockedAt
+              ? (REPORT_REASONS[album.blockedReason as ReportReason] ?? "conteúdo denunciado")
+              : null
+          }
         />
       </div>
     </div>

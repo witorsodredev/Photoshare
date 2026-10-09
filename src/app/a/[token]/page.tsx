@@ -2,23 +2,27 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublicAlbum } from "@/lib/albums";
 import PublicGallery from "@/components/PublicGallery";
+import ReportButton from "@/components/ReportButton";
+import { captchaSiteKey } from "@/lib/captcha";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
-  params,
+  params: paramsP,
 }: {
-  params: { token: string };
+  params: Promise<{ token: string }>;
 }): Promise<Metadata> {
+  const params = await paramsP;
   const album = await getPublicAlbum(params.token);
   return { title: album ? `${album.title} — PhotoShare` : "Álbum não encontrado" };
 }
 
 export default async function PublicAlbumPage({
-  params,
+  params: paramsP,
 }: {
-  params: { token: string };
+  params: Promise<{ token: string }>;
 }) {
+  const params = await paramsP;
   const album = await getPublicAlbum(params.token);
   if (!album) notFound();
 
@@ -62,8 +66,9 @@ export default async function PublicAlbumPage({
         )}
       </div>
 
-      <footer className="mt-16 border-t border-ink-line py-6 text-center text-xs text-gray-600">
-        Compartilhado via PhotoShare
+      <footer className="mt-16 flex flex-col items-center gap-2 border-t border-ink-line py-6 text-xs text-gray-600">
+        <span>Compartilhado via PhotoShare</span>
+        <ReportButton token={params.token} captchaSiteKey={captchaSiteKey()} />
       </footer>
     </main>
   );

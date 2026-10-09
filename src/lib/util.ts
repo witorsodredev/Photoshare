@@ -10,7 +10,8 @@ export function safeFilename(name: string): string {
 }
 
 export function appBaseUrl(reqUrl: string): string {
-  const configured = process.env.NEXT_PUBLIC_APP_URL;
+  // APP_URL is read at runtime; NEXT_PUBLIC_* would be frozen at build time.
+  const configured = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
   if (configured) return configured.replace(/\/$/, "");
   try {
     const u = new URL(reqUrl);

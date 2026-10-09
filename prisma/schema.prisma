@@ -19,37 +19,51 @@ enum UserStatus {
 }
 
 model User {
-  id             String     @id @default(cuid())
-  email          String     @unique
-  name           String
-  password       String
-  role           Role       @default(USER)
+  id              String     @id @default(cuid())
+  email           String     @unique
+  name            String
+  password        String
+  role            Role       @default(USER)
   // Defaults to ACTIVE so accounts that existed before approval was
   // introduced keep working; new sign-ups are created as PENDING.
-  status         UserStatus @default(ACTIVE)
+  status          UserStatus @default(ACTIVE)
   // Storage limit for this user's originals, in MB. null = unlimited.
-  storageQuotaMb Int?
+  storageQuotaMb  Int?
   // Brute-force lock: consecutive wrong passwords; once it hits the limit
   // lockedAt is set and only an admin can unlock the account.
-  failedLogins   Int        @default(0)
-  lockedAt       DateTime?
-  createdAt      DateTime   @default(now())
-  albums         Album[]
+  failedLogins    Int        @default(0)
+  lockedAt        DateTime?
+  // null = e-mail not confirmed yet (only enforced when SMTP is configured).
+  emailVerifiedAt DateTime?
+  // Which Terms/Privacy version the user accepted, and when (LGPD proof).
+  termsVersion    String?
+  termsAcceptedAt DateTime?
+  // Embedded in each session JWT; bumping it (on password change) makes
+  // every existing session invalid.
+  sessionVersion  Int        @default(0)
+  createdAt       DateTime   @default(now())
+  albums          Album[]
+  tokens          Token[]
 }
 
 model Album {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   title         String
   description   String?
   ownerId       String
-  owner         User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  shareToken    String?  @unique
-  isPublic      Boolean  @default(false)
-  allowDownload Boolean  @default(true)
+  owner         User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  shareToken    String?   @unique
+  isPublic      Boolean   @default(false)
+  allowDownload Boolean   @default(true)
   coverPhotoId  String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  // Taken down by moderation (e.g. after a report): the public link stops
+  // working and the owner can't re-publish until an admin lifts it.
+  blockedAt     DateTime?
+  blockedReason String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   photos        Photo[]
+  reports       Report[]
 
   @@index([ownerId])
 }
@@ -70,4 +84,63 @@ model Photo {
   createdAt   DateTime @default(now())
 
   @@index([albumId])
+}
+
+enum TokenType {
+  PASSWORD_RESET
+  EMAIL_VERIFY
+}
+
+// Single-use tokens sent by e-mail (or handed out by an admin). Only the
+// SHA-256 of the token is stored.
+model Token {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      TokenType
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// Marco Civil da Internet, art. 15: application access records (IP, date
+// and time) must be kept for 6 months. Deliberately not tied to User by FK so
+// the records survive account deletion for that legal period.
+model AccessLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String?
+  event     String
+  ip        String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+// Abuse reports from public album viewers (Marco Civil art. 21 takedowns).
+model Report {
+  id            String       @id @default(cuid())
+  albumId       String?
+  album         Album?       @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  albumTitle    String
+  reason        String
+  details       String?
+  reporterEmail String?
+  ip            String
+  status        ReportStatus @default(OPEN)
+  createdAt     DateTime     @default(now())
+  resolvedAt    DateTime?
+
+  @@index([status])
 }

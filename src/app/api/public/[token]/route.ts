@@ -5,8 +5,9 @@ export const runtime = "nodejs";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { token: string } },
+  { params: paramsP }: { params: Promise<{ token: string }> },
 ) {
+  const params = await paramsP;
   const album = await getPublicAlbum(params.token);
   if (!album) return NextResponse.json({ error: "not found" }, { status: 404 });
 

@@ -3,14 +3,19 @@ import { Readable } from "node:stream";
 import archiver from "archiver";
 import { getObject } from "@/lib/s3";
 
-type ZipPhoto = { storageKey: string; filename: string };
+type ZipPhoto = { storageKey: string; filename: string; folder?: string };
+type ZipExtra = { name: string; content: string };
 
 /**
  * Streams a ZIP of the given photos' ORIGINAL bytes.
  * Stored (no recompression) — the photos are already compressed and we must
  * not alter quality.
  */
-export function zipResponse(photos: ZipPhoto[], downloadName: string): Response {
+export function zipResponse(
+  photos: ZipPhoto[],
+  downloadName: string,
+  extras: ZipExtra[] = [],
+): Response {
   const archive = archiver("zip", { store: true });
 
   archive.on("error", (err) => {
@@ -18,20 +23,22 @@ export function zipResponse(photos: ZipPhoto[], downloadName: string): Response 
   });
 
   (async () => {
+    for (const x of extras) archive.append(x.content, { name: x.name });
     const seen = new Map<string, number>();
     for (const p of photos) {
       try {
         const { body } = await getObject(p.storageKey);
-        let name = p.filename;
+        const full = p.folder ? `${p.folder}/${p.filename}` : p.filename;
+        let name = full;
         const n = seen.get(name.toLowerCase()) ?? 0;
         if (n > 0) {
           const dot = name.lastIndexOf(".");
           name =
-            dot > 0
+            dot > name.lastIndexOf("/") + 1 // a dot in the folder isn't an extension
               ? `${name.slice(0, dot)} (${n})${name.slice(dot)}`
               : `${name} (${n})`;
         }
-        seen.set(p.filename.toLowerCase(), n + 1);
+        seen.set(full.toLowerCase(), n + 1);
         archive.append(body, { name });
       } catch (err) {
         console.error("[zip] skipping", p.storageKey, err);

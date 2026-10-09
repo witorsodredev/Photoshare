@@ -23,6 +23,7 @@ export default async function AdminPage() {
         storageQuotaMb: true,
         failedLogins: true,
         lockedAt: true,
+        emailVerifiedAt: true,
         createdAt: true,
       },
     }),
@@ -49,6 +50,7 @@ export default async function AdminPage() {
           ...u,
           createdAt: u.createdAt.toISOString(),
           lockedAt: u.lockedAt?.toISOString() ?? null,
+          emailVerifiedAt: u.emailVerifiedAt?.toISOString() ?? null,
           usedBytes: usage.get(u.id) ?? 0,
         }))}
       />

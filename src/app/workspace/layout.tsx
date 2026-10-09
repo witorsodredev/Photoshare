@@ -17,9 +17,10 @@ export default async function WorkspaceLayout({
   if (!user) redirect("/login");
 
   const isAdmin = user.role === "ADMIN";
-  const [used, pending] = await Promise.all([
+  const [used, pending, openReports] = await Promise.all([
     getUsedBytes(user.id),
     isAdmin ? prisma.user.count({ where: { status: "PENDING" } }) : 0,
+    isAdmin ? prisma.report.count({ where: { status: "OPEN" } }) : 0,
   ]);
   const quota = quotaBytes(user.storageQuotaMb);
   const pct = quota ? Math.min(100, (used / quota) * 100) : 0;
@@ -65,9 +66,26 @@ export default async function WorkspaceLayout({
                 )}
               </Link>
             )}
-            <span className="hidden text-sm text-gray-400 sm:inline">
+            {isAdmin && (
+              <Link
+                href="/workspace/admin/denuncias"
+                className="text-sm text-gray-300 hover:text-white"
+              >
+                Denúncias
+                {openReports > 0 && (
+                  <span className="ml-1.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                    {openReports}
+                  </span>
+                )}
+              </Link>
+            )}
+            <Link
+              href="/workspace/conta"
+              className="max-w-[10rem] truncate text-sm text-gray-400 hover:text-white"
+              title="Minha conta"
+            >
               {user.name}
-            </span>
+            </Link>
             <LogoutButton />
           </div>
         </div>

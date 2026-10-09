@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import AuthForm from "@/components/AuthForm";
 import { getSessionUserId } from "@/lib/auth";
+import { captchaSiteKey } from "@/lib/captcha";
+import { mailEnabled } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +12,11 @@ export default async function RegisterPage() {
   return (
     <main className="flex min-h-screen items-center px-6 py-16">
       <Suspense>
-        <AuthForm mode="register" />
+        <AuthForm
+          mode="register"
+          captchaSiteKey={captchaSiteKey()}
+          mailEnabled={mailEnabled()}
+        />
       </Suspense>
     </main>
   );

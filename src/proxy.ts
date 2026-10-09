@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 // Lightweight gate: only checks that a session cookie is present so we can
 // redirect to /login early. Real verification happens in the Node runtime
 // (server components / route handlers) via lib/auth.
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const hasCookie = Boolean(req.cookies.get("ps_session")?.value);
   if (hasCookie) return NextResponse.next();
 

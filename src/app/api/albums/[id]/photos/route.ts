@@ -5,7 +5,7 @@ import { getOwnedAlbum } from "@/lib/albums";
 import { putObject } from "@/lib/s3";
 import { buildDerivatives } from "@/lib/images";
 import { safeFilename } from "@/lib/util";
-import { getUsedBytes, quotaBytes } from "@/lib/storage";
+import { getUsedBytes, maxUploadBytes, quotaBytes } from "@/lib/storage";
 import { formatBytes } from "@/lib/format";
 
 export const runtime = "nodejs";
@@ -20,8 +20,9 @@ function quotaExceeded(quota: number) {
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } },
+  { params: paramsP }: { params: Promise<{ id: string }> },
 ) {
+  const params = await paramsP;
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const userId = user.id;
@@ -29,6 +30,16 @@ export async function POST(
 
   const album = await getOwnedAlbum(params.id, userId);
   if (!album) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  // Reject oversized uploads before formData() buffers them in memory.
+  const maxBytes = maxUploadBytes();
+  const declared = Number(req.headers.get("content-length") || 0);
+  if (!declared || declared > maxBytes + 64 * 1024) {
+    return NextResponse.json(
+      { error: `Arquivo grande demais (máximo ${formatBytes(maxBytes)}).` },
+      { status: declared ? 413 : 411 },
+    );
+  }
 
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");

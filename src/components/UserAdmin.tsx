@@ -15,6 +15,7 @@ export type AdminUserRow = {
   storageQuotaMb: number | null;
   failedLogins: number;
   lockedAt: string | null;
+  emailVerifiedAt: string | null;
   createdAt: string;
   usedBytes: number;
 };
@@ -46,6 +47,8 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [unlimited, setUnlimited] = useState(user.storageQuotaMb == null);
+  const [resetLink, setResetLink] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [quotaGb, setQuotaGb] = useState(
     user.storageQuotaMb == null ? "" : String(+(user.storageQuotaMb / 1024).toFixed(2)),
   );
@@ -54,21 +57,34 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
   const pct = quotaBytes ? Math.min(100, (user.usedBytes / quotaBytes) * 100) : 0;
   const badge = STATUS_LABEL[user.status];
 
-  async function patch(body: Record<string, unknown>) {
+  async function call(method: string, path = "", body: unknown = {}) {
     setBusy(true);
     setError(null);
-    const res = await fetch(`/api/admin/users/${user.id}`, {
-      method: "PATCH",
+    const res = await fetch(`/api/admin/users/${user.id}${path}`, {
+      method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     setBusy(false);
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       setError(data.error || "Falha ao salvar.");
-      return;
+      return null;
     }
-    router.refresh();
+    return data;
+  }
+
+  async function patch(body: Record<string, unknown>) {
+    if (await call("PATCH", "", body)) router.refresh();
+  }
+
+  async function makeResetLink() {
+    const data = await call("POST", "/reset-link");
+    if (data?.link) setResetLink(data.link);
+  }
+
+  async function remove() {
+    if (await call("DELETE")) router.refresh();
   }
 
   function saveQuota(e: React.FormEvent) {
@@ -103,6 +119,11 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
                 admin
               </span>
             )}
+            {!user.emailVerifiedAt && (
+              <span className="rounded-full bg-gray-500/15 px-2 py-0.5 text-[11px] font-medium text-gray-400">
+                e-mail não confirmado
+              </span>
+            )}
           </div>
           <p className="mt-0.5 truncate text-sm text-gray-400">{user.email}</p>
           <p className="mt-0.5 text-xs text-gray-500">
@@ -114,7 +135,7 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {user.lockedAt && (
             <button
               className="btn-primary"
@@ -198,6 +219,72 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
           </div>
         </form>
       </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-ink-line pt-4 text-sm">
+        <button className="btn-ghost" disabled={busy} onClick={makeResetLink}>
+          Gerar link de nova senha
+        </button>
+        {!user.emailVerifiedAt && (
+          <button
+            className="btn-ghost"
+            disabled={busy}
+            onClick={() => patch({ verifyEmail: true })}
+          >
+            Marcar e-mail como confirmado
+          </button>
+        )}
+        {!isSelf && (
+          <>
+            <button
+              className="btn-ghost"
+              disabled={busy}
+              onClick={() => patch({ role: user.role === "ADMIN" ? "USER" : "ADMIN" })}
+            >
+              {user.role === "ADMIN" ? "Remover admin" : "Tornar admin"}
+            </button>
+            {confirmDelete ? (
+              <>
+                <span className="text-red-300">Apagar conta, álbuns e fotos?</span>
+                <button
+                  className="btn bg-red-600 text-white hover:bg-red-500"
+                  disabled={busy}
+                  onClick={remove}
+                >
+                  Sim, excluir
+                </button>
+                <button className="btn-ghost" onClick={() => setConfirmDelete(false)}>
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <button
+                className="btn-ghost text-red-300"
+                disabled={busy}
+                onClick={() => setConfirmDelete(true)}
+              >
+                Excluir conta
+              </button>
+            )}
+          </>
+        )}
+      </div>
+
+      {resetLink && (
+        <div className="mt-3 rounded-lg bg-ink p-3 text-sm">
+          <p className="text-gray-400">
+            Envie este link para {user.name} (vale por 1 hora e só pode ser usado uma vez):
+          </p>
+          <div className="mt-2 flex gap-2">
+            <input readOnly value={resetLink} className="input font-mono text-xs" />
+            <button
+              className="btn-ghost"
+              onClick={() => navigator.clipboard?.writeText(resetLink)}
+            >
+              Copiar
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
     </li>

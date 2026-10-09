@@ -80,10 +80,22 @@ export async function deleteKeys(keys: string[]) {
     await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: unique[0] }));
     return;
   }
-  await s3.send(
-    new DeleteObjectsCommand({
-      Bucket: BUCKET,
-      Delete: { Objects: unique.map((Key) => ({ Key })) },
-    }),
-  );
+  // DeleteObjects accepts at most 1000 keys per call.
+  for (let i = 0; i < unique.length; i += 1000) {
+    await s3.send(
+      new DeleteObjectsCommand({
+        Bucket: BUCKET,
+        Delete: { Objects: unique.slice(i, i + 1000).map((Key) => ({ Key })) },
+      }),
+    );
+  }
+}
+
+export async function storageHealthy(): Promise<boolean> {
+  try {
+    await s3.send(new HeadBucketCommand({ Bucket: BUCKET }));
+    return true;
+  } catch {
+    return false;
+  }
 }

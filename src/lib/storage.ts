@@ -26,6 +26,12 @@ export async function getUsedBytesByUser(): Promise<Map<string, number>> {
   return new Map(rows.map((r) => [r.ownerId, Number(r.used)]));
 }
 
+/** Largest single upload accepted, from MAX_UPLOAD_MB (default 200 MB). */
+export function maxUploadBytes(): number {
+  const mb = Number(process.env.MAX_UPLOAD_MB || 200);
+  return (Number.isFinite(mb) && mb > 0 ? mb : 200) * MB;
+}
+
 export function quotaBytes(quotaMb: number | null): number | null {
   return quotaMb == null ? null : quotaMb * MB;
 }

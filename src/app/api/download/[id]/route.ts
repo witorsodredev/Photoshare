@@ -7,8 +7,9 @@ export const runtime = "nodejs";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } },
+  { params: paramsP }: { params: Promise<{ id: string }> },
 ) {
+  const params = await paramsP;
   const userId = await getSessionUserId();
 
   const photo = await prisma.photo.findUnique({
@@ -21,6 +22,7 @@ export async function GET(
   const publicOk =
     photo.album.isPublic &&
     photo.album.allowDownload &&
+    !photo.album.blockedAt &&
     photo.album.owner.status === "ACTIVE";
   if (!isOwner && !publicOk) return new Response("Forbidden", { status: 403 });
 

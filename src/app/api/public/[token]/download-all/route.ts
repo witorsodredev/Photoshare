@@ -7,8 +7,9 @@ export const maxDuration = 600;
 
 export async function GET(
   _req: Request,
-  { params }: { params: { token: string } },
+  { params: paramsP }: { params: Promise<{ token: string }> },
 ) {
+  const params = await paramsP;
   const album = await getPublicAlbum(params.token);
   if (!album) return new Response("Not found", { status: 404 });
   if (!album.allowDownload) return new Response("Download desativado", { status: 403 });

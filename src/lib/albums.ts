@@ -19,7 +19,12 @@ export async function getOwnedAlbum(albumId: string, userId: string) {
 
 export async function getPublicAlbum(token: string) {
   return prisma.album.findFirst({
-    where: { shareToken: token, isPublic: true, owner: { status: "ACTIVE" } },
+    where: {
+      shareToken: token,
+      isPublic: true,
+      blockedAt: null,
+      owner: { status: "ACTIVE" },
+    },
     include: {
       owner: { select: { name: true } },
       photos: { orderBy: [{ order: "asc" }, { createdAt: "asc" }] },
@@ -35,7 +40,10 @@ export async function canViewPhoto(photoId: string, userId: string | null) {
   });
   if (!photo) return null;
   const owner = userId && photo.album.ownerId === userId;
-  const shared = photo.album.isPublic && photo.album.owner.status === "ACTIVE";
+  const shared =
+    photo.album.isPublic &&
+    !photo.album.blockedAt &&
+    photo.album.owner.status === "ACTIVE";
   if (owner || shared) return photo;
   return null;
 }
