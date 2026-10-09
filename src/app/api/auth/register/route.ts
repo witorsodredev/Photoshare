@@ -2,21 +2,26 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSession, hashPassword } from "@/lib/auth";
 import { defaultQuotaMb } from "@/lib/storage";
+import {
+  readJsonBody,
+  validateEmail,
+  validateName,
+  validateNewPassword,
+} from "@/lib/validation";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null);
-  const name = String(body?.name || "").trim();
-  const email = String(body?.email || "").trim().toLowerCase();
-  const password = String(body?.password || "");
+  const body = await readJsonBody(req);
+  if (!body.ok) return body.response;
 
-  if (!name || !email || password.length < 8) {
-    return NextResponse.json(
-      { error: "Preencha nome, e-mail e uma senha de ao menos 8 caracteres." },
-      { status: 400 },
-    );
-  }
+  const name = validateName(body.value.name);
+  if (!name.ok) return name.response;
+  const emailR = validateEmail(body.value.email);
+  if (!emailR.ok) return emailR.response;
+  const pass = validateNewPassword(body.value.password);
+  if (!pass.ok) return pass.response;
+  const email = emailR.value;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -30,16 +35,25 @@ export async function POST(req: Request) {
   // without a quota. Everyone else waits for an admin to approve them.
   const hasAdmin = (await prisma.user.count({ where: { role: "ADMIN" } })) > 0;
 
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email,
-      password: await hashPassword(password),
-      ...(hasAdmin
-        ? { role: "USER", status: "PENDING", storageQuotaMb: defaultQuotaMb() }
-        : { role: "ADMIN", status: "ACTIVE", storageQuotaMb: null }),
-    },
-  });
+  const user = await prisma.user
+    .create({
+      data: {
+        name: name.value,
+        email,
+        password: await hashPassword(pass.value),
+        ...(hasAdmin
+          ? { role: "USER", status: "PENDING", storageQuotaMb: defaultQuotaMb() }
+          : { role: "ADMIN", status: "ACTIVE", storageQuotaMb: null }),
+      },
+    })
+    // Same e-mail registered concurrently: unique constraint wins.
+    .catch((e) => (e?.code === "P2002" ? null : Promise.reject(e)));
+  if (!user) {
+    return NextResponse.json(
+      { error: "Já existe uma conta com esse e-mail." },
+      { status: 409 },
+    );
+  }
 
   if (user.status !== "ACTIVE") {
     return NextResponse.json({ ok: true, pending: true });

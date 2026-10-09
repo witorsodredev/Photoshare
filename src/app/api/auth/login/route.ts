@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSession, verifyPassword } from "@/lib/auth";
+import { readJsonBody } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
@@ -17,9 +18,13 @@ function locked() {
 }
 
 export async function POST(req: Request) {
-  const body = await req.json().catch(() => null);
-  const email = String(body?.email || "").trim().toLowerCase();
-  const password = String(body?.password || "");
+  const body = await readJsonBody(req);
+  if (!body.ok) return body.response;
+  const { email: rawEmail, password } = body.value;
+  if (typeof rawEmail !== "string" || typeof password !== "string") {
+    return NextResponse.json({ error: "E-mail ou senha inválidos." }, { status: 400 });
+  }
+  const email = rawEmail.trim().toLowerCase();
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {

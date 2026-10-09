@@ -81,7 +81,15 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
             <label className="label" htmlFor="name">
               Nome
             </label>
-            <input id="name" name="name" required className="input" autoComplete="name" />
+            <input
+              id="name"
+              name="name"
+              required
+              minLength={2}
+              maxLength={80}
+              className="input"
+              autoComplete="name"
+            />
           </div>
         )}
         <div>
@@ -93,6 +101,7 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
             name="email"
             type="email"
             required
+            maxLength={254}
             className="input"
             autoComplete="email"
           />
@@ -107,6 +116,7 @@ export default function AuthForm({ mode }: { mode: "login" | "register" }) {
             type="password"
             required
             minLength={8}
+            maxLength={isRegister ? 72 : undefined}
             className="input"
             autoComplete={isRegister ? "new-password" : "current-password"}
           />
