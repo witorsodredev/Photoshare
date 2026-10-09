@@ -1,0 +1,77 @@
+services:
+  db:
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: photoshare
+      POSTGRES_PASSWORD: photoshare
+      POSTGRES_DB: photoshare
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U photoshare"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    # MinIO stopped publishing images (minio/minio and minio/mc no longer
+    # pull from Docker Hub or Quay); pgsty/* is a drop-in community build.
+    image: docker.io/pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      # Bound to localhost only: the admin console/API use default
+      # credentials and don't need to be reachable from the LAN.
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+
+  createbuckets:
+    image: docker.io/pgsty/mc:RELEASE.2026-09-16T00-00-00Z
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minioadmin minioadmin; do echo 'waiting for minio'; sleep 2; done;
+      mc mb --ignore-existing local/photos;
+      mc anonymous set none local/photos;
+      echo 'bucket ready';
+      "
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      DATABASE_URL: "postgresql://photoshare:photoshare@db:5432/photoshare?schema=public"
+      S3_ENDPOINT: "http://minio:9000"
+      S3_REGION: "us-east-1"
+      S3_ACCESS_KEY: "minioadmin"
+      S3_SECRET_KEY: "minioadmin"
+      S3_BUCKET: "photos"
+      # Read from .env (not committed). Generate: openssl rand -hex 32
+      JWT_SECRET: "${JWT_SECRET:?set JWT_SECRET in .env}"
+      COOKIE_SECURE: "false"
+      # Storage quota (originals) given to new sign-ups, in MB. 0 = unlimited.
+      # Admins can change each user's quota later under /workspace/admin.
+      DEFAULT_STORAGE_QUOTA_MB: "10240"
+      # Left unset on purpose: the app builds share links from each
+      # request's Host header, so it works for localhost AND the LAN IP
+      # automatically. Only set this if you put the app behind a fixed
+      # domain/reverse proxy later.
+    ports:
+      - "3000:3000"
+
+volumes:
+  db_data:
+  minio_data:

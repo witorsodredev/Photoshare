@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  DISABLED
+}
+
+model User {
+  id             String     @id @default(cuid())
+  email          String     @unique
+  name           String
+  password       String
+  role           Role       @default(USER)
+  // Defaults to ACTIVE so accounts that existed before approval was
+  // introduced keep working; new sign-ups are created as PENDING.
+  status         UserStatus @default(ACTIVE)
+  // Storage limit for this user's originals, in MB. null = unlimited.
+  storageQuotaMb Int?
+  // Brute-force lock: consecutive wrong passwords; once it hits the limit
+  // lockedAt is set and only an admin can unlock the account.
+  failedLogins   Int        @default(0)
+  lockedAt       DateTime?
+  createdAt      DateTime   @default(now())
+  albums         Album[]
+}
+
+model Album {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  ownerId       String
+  owner         User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  shareToken    String?  @unique
+  isPublic      Boolean  @default(false)
+  allowDownload Boolean  @default(true)
+  coverPhotoId  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  photos        Photo[]
+
+  @@index([ownerId])
+}
+
+model Photo {
+  id          String   @id @default(cuid())
+  albumId     String
+  album       Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  filename    String
+  contentType String
+  size        Int
+  width       Int?
+  height      Int?
+  storageKey  String
+  thumbKey    String
+  previewKey  String
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([albumId])
+}
