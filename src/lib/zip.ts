@@ -52,7 +52,9 @@ export function zipResponse(
   return new Response(webStream, {
     headers: {
       "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="${downloadName}"`,
+      // ASCII fallback + RFC 5987 UTF-8 name: header values can't carry
+      // arbitrary Unicode (accents/emoji in album titles).
+      "Content-Disposition": `attachment; filename="${downloadName.replace(/[^\x20-\x7e]/g, "_").replace(/"/g, "")}"; filename*=UTF-8''${encodeURIComponent(downloadName)}`,
       "Cache-Control": "no-store",
     },
   });

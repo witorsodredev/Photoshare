@@ -1,6 +1,13 @@
 # HTTPS reverse proxy in front of the app. With a real domain in DOMAIN
 # (DNS pointing to this server, ports 80/443 open), Caddy gets and renews a
 # Let's Encrypt certificate automatically. DOMAIN=localhost uses a local CA.
+# Several addresses are allowed: DOMAIN="localhost, 192.168.1.10".
+
+{
+	# Certificate used when the client sends no SNI — browsers don't when the
+	# site is opened by IP address (e.g. https://192.168.1.10 on a LAN).
+	default_sni {$DEFAULT_SNI:localhost}
+}
 
 {$DOMAIN:localhost} {
 	encode zstd gzip

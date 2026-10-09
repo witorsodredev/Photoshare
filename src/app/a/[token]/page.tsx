@@ -55,6 +55,7 @@ export default async function PublicAlbumPage({
           <p className="text-sm text-gray-500">Este álbum ainda não tem fotos.</p>
         ) : (
           <PublicGallery
+            token={params.token}
             photos={album.photos.map((p) => ({
               id: p.id,
               filename: p.filename,
