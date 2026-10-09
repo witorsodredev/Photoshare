@@ -52,6 +52,23 @@ Crie um registro **A** (e **AAAA**, se tiver IPv6) apontando o domínio para o
 IP do servidor, por exemplo `fotos.seudominio.com.br`. O Caddy só consegue
 emitir o certificado depois que o DNS estiver propagado.
 
+### Com a Cloudflare na frente (proxy, "nuvem laranja")
+
+Opcional, mas recomendado: protege contra DDoS e esconde o IP do servidor.
+
+- **SSL/TLS → modo "Full (strict)"** no painel da Cloudflare. Em "Flexible",
+  a Cloudflare fala com o servidor por HTTP e o Caddy redireciona para HTTPS,
+  o que gera um loop de redirecionamento.
+- **Uploads:** os planos Free e Pro limitam cada requisição a 100 MB. No
+  `.env`, use `MAX_UPLOAD_MB="95"` e `MAX_REQUEST_BODY="100MB"`.
+- **IP real do visitante:** o `Caddyfile` já confia no `CF-Connecting-IP`,
+  mas só quando a conexão vem das faixas oficiais da Cloudflare. Assim o
+  limite por IP e os registros do Marco Civil gravam o IP do visitante, e
+  não o da Cloudflare. Se a Cloudflare publicar faixas novas em
+  <https://www.cloudflare.com/ips>, atualize `trusted_proxies` no `Caddyfile`.
+- **Firewall (opcional):** para impedir acessos diretos ao IP do servidor,
+  libere as portas 80/443 só para as faixas da Cloudflare.
+
 ## 3. Configuração (`.env`)
 
 ```bash
@@ -169,5 +186,7 @@ docker compose exec db psql -U photoshare -c \
 | Caddy não emite o certificado | DNS ainda não aponta para o servidor, ou as portas 80/443 estão bloqueadas |
 | `app` fica "unhealthy" | `docker compose logs app`; normalmente é senha do banco/MinIO divergente do `.env` |
 | E-mails não chegam | Dados `SMTP_*` errados, ou SPF/DKIM ausentes (vão para o spam) |
+| Mudei o `Caddyfile` e nada aconteceu | Ele é montado no container: rode `docker compose restart caddy` |
+| Loop de redirecionamento com a Cloudflare | Modo SSL/TLS da Cloudflare em "Flexible"; troque para "Full (strict)" |
 | Admin bloqueado por senhas erradas | `docker compose exec app node prisma/unlock-user.mjs email@admin` |
 | Muitos "Muitas tentativas a partir desta rede" | Usuários atrás do mesmo IP (empresa, faculdade); ajuste `LIMITS` em `src/lib/ratelimit.ts` |
