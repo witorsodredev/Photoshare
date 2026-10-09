@@ -19,6 +19,22 @@ export type ManagedAlbum = {
   isPublic: boolean;
   allowDownload: boolean;
   shareToken: string | null;
+  coverPhotoId: string | null;
+  theme: "LIGHT" | "DARK";
+  coverPosition: string;
+  eventDate: string | null; // YYYY-MM-DD
+};
+
+const POSITIONS = [
+  { value: "top", label: "Topo" },
+  { value: "center", label: "Centro" },
+  { value: "bottom", label: "Base" },
+];
+// Same framing as the client cover (AlbumPresentation).
+const COVER_OBJECT_POSITION: Record<string, string> = {
+  top: "50% 20%",
+  center: "50% 50%",
+  bottom: "50% 80%",
 };
 
 type UploadItem = { name: string; status: "uploading" | "done" | "error"; message?: string };
@@ -124,6 +140,8 @@ export default function AlbumManager({
     const res = await fetch(`/api/photos/${id}`, { method: "DELETE" });
     if (res.ok) {
       setPhotos((p) => p.filter((x) => x.id !== id));
+      // The server clears the cover when its photo is deleted.
+      if (album.coverPhotoId === id) setAlbum((a) => ({ ...a, coverPhotoId: null }));
       router.refresh();
     }
   }
@@ -136,6 +154,7 @@ export default function AlbumManager({
   }
 
   const link = album.shareToken ? `${origin}/a/${album.shareToken}` : "";
+  const coverPhoto = photos.find((p) => p.id === album.coverPhotoId) ?? photos[0];
 
   return (
     <div className="space-y-8">
@@ -232,6 +251,106 @@ export default function AlbumManager({
         )}
       </div>
 
+      {/* Client presentation */}
+      <div className="card p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="font-medium">Apresentação para o cliente</p>
+            <p className="text-sm text-gray-400">
+              Capa, tema e data exibidos na página do álbum.
+            </p>
+          </div>
+          <a
+            className="btn-ghost"
+            href={`/preview/${album.id}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Pré-visualizar
+          </a>
+        </div>
+
+        <div className="mt-5 grid gap-5 sm:grid-cols-[180px_1fr]">
+          <div>
+            <p className="label">Capa</p>
+            <div className="aspect-[4/3] overflow-hidden rounded-lg bg-ink">
+              {coverPhoto ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={`/api/image/${coverPhoto.id}?v=thumb`}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  style={{ objectPosition: COVER_OBJECT_POSITION[album.coverPosition] }}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center px-3 text-center text-xs text-gray-600">
+                  Envie fotos para ter uma capa
+                </div>
+              )}
+            </div>
+            <p className="mt-1.5 text-xs text-gray-500">
+              {album.coverPhotoId
+                ? "Escolhida por você."
+                : coverPhoto
+                  ? "Usando a primeira foto. Use “Capa” numa foto abaixo para trocar."
+                  : ""}
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <p className="label">Tema</p>
+              <div className="inline-flex overflow-hidden rounded-lg border border-ink-line">
+                {(["LIGHT", "DARK"] as const).map((t) => (
+                  <button
+                    key={t}
+                    className={`px-4 py-1.5 text-sm transition ${
+                      album.theme === t ? "bg-white text-black" : "text-gray-300 hover:bg-white/5"
+                    }`}
+                    onClick={() => patchAlbum({ theme: t })}
+                  >
+                    {t === "LIGHT" ? "Claro" : "Escuro"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="label">Enquadramento da capa</p>
+              <div className="inline-flex overflow-hidden rounded-lg border border-ink-line">
+                {POSITIONS.map((p) => (
+                  <button
+                    key={p.value}
+                    className={`px-4 py-1.5 text-sm transition ${
+                      album.coverPosition === p.value
+                        ? "bg-white text-black"
+                        : "text-gray-300 hover:bg-white/5"
+                    }`}
+                    onClick={() => patchAlbum({ coverPosition: p.value })}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Qual parte da foto aparece quando a capa é cortada (útil para rostos no alto).
+              </p>
+            </div>
+            <div>
+              <label className="label" htmlFor="eventDate">
+                Data do ensaio (opcional)
+              </label>
+              <input
+                id="eventDate"
+                type="date"
+                className="input w-48"
+                defaultValue={album.eventDate ?? ""}
+                onChange={(e) => patchAlbum({ eventDate: e.target.value || null })}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Uploader */}
       <div
         className={`card border-dashed p-8 text-center transition ${
@@ -317,7 +436,21 @@ export default function AlbumManager({
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/80 to-transparent px-2 py-1.5 text-[11px] opacity-0 transition group-hover:opacity-100">
                   <span className="truncate">{humanSize(p.size)}</span>
                 </div>
-                <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition group-hover:opacity-100">
+                {coverPhoto?.id === p.id && (
+                  <span className="pointer-events-none absolute left-1.5 top-1.5 rounded bg-white px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-black">
+                    Capa
+                  </span>
+                )}
+                <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition group-hover:opacity-100 [@media(hover:none)]:opacity-100">
+                  {coverPhoto?.id !== p.id && (
+                    <button
+                      onClick={() => patchAlbum({ coverPhotoId: p.id })}
+                      className="rounded bg-black/70 px-1.5 py-1 text-[11px] hover:bg-black"
+                      title="Usar como capa do álbum"
+                    >
+                      Capa
+                    </button>
+                  )}
                   <a
                     href={`/api/download/${p.id}`}
                     download

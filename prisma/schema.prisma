@@ -47,21 +47,25 @@ model User {
 }
 
 model Album {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   title         String
   description   String?
   ownerId       String
-  owner         User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  shareToken    String?   @unique
-  isPublic      Boolean   @default(false)
-  allowDownload Boolean   @default(true)
+  owner         User       @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  shareToken    String?    @unique
+  isPublic      Boolean    @default(false)
+  allowDownload Boolean    @default(true)
   coverPhotoId  String?
+  // Client-facing presentation (public album page).
+  theme         AlbumTheme @default(LIGHT)
+  coverPosition String     @default("center") // top | center | bottom
+  eventDate     DateTime?
   // Taken down by moderation (e.g. after a report): the public link stops
   // working and the owner can't re-publish until an admin lifts it.
   blockedAt     DateTime?
   blockedReason String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
   photos        Photo[]
   reports       Report[]
 
@@ -80,10 +84,18 @@ model Photo {
   storageKey  String
   thumbKey    String
   previewKey  String
+  // ~1200px rendition for the client gallery grid. Older photos get it
+  // generated on first request (see /api/image).
+  gridKey     String?
   order       Int      @default(0)
   createdAt   DateTime @default(now())
 
   @@index([albumId])
+}
+
+enum AlbumTheme {
+  LIGHT
+  DARK
 }
 
 enum TokenType {

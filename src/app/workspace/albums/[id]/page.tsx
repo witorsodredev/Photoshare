@@ -45,6 +45,10 @@ export default async function AlbumPage({
             isPublic: album.isPublic,
             allowDownload: album.allowDownload,
             shareToken: album.shareToken,
+            coverPhotoId: album.coverPhotoId,
+            theme: album.theme,
+            coverPosition: album.coverPosition,
+            eventDate: album.eventDate ? album.eventDate.toISOString().slice(0, 10) : null,
           }}
           photos={album.photos.map((p) => ({
             id: p.id,

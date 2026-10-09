@@ -21,6 +21,7 @@ export default function Lightbox({
   allowDownload = true,
   selected,
   onToggleSelect,
+  theme = "dark",
 }: {
   photos: LightboxPhoto[];
   index: number;
@@ -30,6 +31,8 @@ export default function Lightbox({
   /** When given, shows a select toggle for the current photo. */
   selected?: Set<string>;
   onToggleSelect?: (id: string) => void;
+  /** Client album theme; the photographer's workspace uses the dark one. */
+  theme?: "light" | "dark";
 }) {
   const photo = photos[index];
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -94,34 +97,34 @@ export default function Lightbox({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex h-[100dvh] flex-col bg-black/95"
+      className={`album-${theme} fixed inset-0 z-[60] flex h-[100dvh] flex-col`}
       onClick={onClose}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
       <div
-        className="flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-300 sm:px-4 sm:py-3"
+        className="flex items-center justify-between gap-2 px-3 py-2 text-sm sm:px-5 sm:py-3"
         onClick={(e) => e.stopPropagation()}
       >
         <span className="min-w-0 truncate">
-          <span className="text-gray-400">
-            {index + 1}/{photos.length}
+          <span className="text-xs tracking-[0.15em] text-[var(--a-muted)]">
+            {index + 1} / {photos.length}
           </span>
-          <span className="ml-2 hidden sm:inline">{photo.filename}</span>
+          <span className="ml-3 hidden text-xs text-[var(--a-muted)] sm:inline">{photo.filename}</span>
           {photo.width && photo.height ? (
-            <span className="ml-2 hidden text-gray-500 md:inline">
+            <span className="ml-2 hidden text-xs text-[var(--a-muted)] md:inline">
               {photo.width}×{photo.height}
             </span>
           ) : null}
         </span>
-        <button className="btn-ghost shrink-0 py-1.5" onClick={onClose} aria-label="Fechar">
+        <button className="a-link shrink-0 text-base" onClick={onClose} aria-label="Fechar">
           ✕
         </button>
       </div>
 
       <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-1 sm:p-2">
         <button
-          className="absolute left-2 z-10 hidden rounded-full bg-white/10 px-3 py-2 text-lg hover:bg-white/20 sm:block"
+          className="absolute left-2 z-10 hidden px-3 py-2 text-3xl font-light text-[var(--a-muted)] transition hover:text-[var(--a-fg)] sm:block"
           onClick={(e) => {
             e.stopPropagation();
             prev();
@@ -140,7 +143,7 @@ export default function Lightbox({
           onClick={(e) => e.stopPropagation()}
         />
         <button
-          className="absolute right-2 z-10 hidden rounded-full bg-white/10 px-3 py-2 text-lg hover:bg-white/20 sm:block"
+          className="absolute right-2 z-10 hidden px-3 py-2 text-3xl font-light text-[var(--a-muted)] transition hover:text-[var(--a-fg)] sm:block"
           onClick={(e) => {
             e.stopPropagation();
             next();
@@ -158,7 +161,7 @@ export default function Lightbox({
       >
         {onToggleSelect && (
           <button
-            className={`btn py-2 ${isSelected ? "bg-blue-600 text-white hover:bg-blue-500" : "btn-ghost"}`}
+            className={isSelected ? "a-btn-solid" : "a-btn"}
             onClick={() => onToggleSelect(photo.id)}
             aria-pressed={isSelected}
           >
@@ -167,14 +170,14 @@ export default function Lightbox({
         )}
         {allowDownload && (
           <>
-            <SaveToDeviceButton photos={[photo]} className="btn-ghost py-2" />
-            <a href={`/api/download/${photo.id}`} className="btn-ghost py-2" download>
+            <SaveToDeviceButton photos={[photo]} className="a-btn" readyClassName="a-btn-solid" />
+            <a href={`/api/download/${photo.id}`} className="a-btn" download>
               Baixar original
             </a>
           </>
         )}
       </div>
-      <p className="pb-[max(0.5rem,env(safe-area-inset-bottom))] text-center text-[11px] text-gray-600 sm:hidden">
+      <p className="pb-[max(0.5rem,env(safe-area-inset-bottom))] text-center text-[11px] text-[var(--a-muted)] sm:hidden">
         Deslize para os lados para navegar · para baixo para fechar
       </p>
     </div>

@@ -86,6 +86,7 @@ export async function POST(
   const storageKey = `originals/${photo.id}/${filename}`;
   const thumbKey = `derived/${photo.id}/thumb.webp`;
   const previewKey = `derived/${photo.id}/preview.webp`;
+  const gridKey = `derived/${photo.id}/grid.webp`;
 
   try {
     // Store the ORIGINAL bytes verbatim — no recompression, ever.
@@ -94,11 +95,14 @@ export async function POST(
     const d = await buildDerivatives(original);
     let usedThumb = storageKey;
     let usedPreview = storageKey;
-    if (d.thumb && d.preview) {
+    let usedGrid: string | null = null;
+    if (d.thumb && d.preview && d.grid) {
       await putObject(thumbKey, d.thumb, "image/webp");
+      await putObject(gridKey, d.grid, "image/webp");
       await putObject(previewKey, d.preview, "image/webp");
       usedThumb = thumbKey;
       usedPreview = previewKey;
+      usedGrid = gridKey;
     }
 
     const updated = await prisma.photo.update({
@@ -107,6 +111,7 @@ export async function POST(
         storageKey,
         thumbKey: usedThumb,
         previewKey: usedPreview,
+        gridKey: usedGrid,
         width: d.width,
         height: d.height,
       },

@@ -21,10 +21,18 @@ export async function DELETE(
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
-  await deleteKeys([photo.storageKey, photo.thumbKey, photo.previewKey]).catch((e) =>
-    console.error("[photo delete] storage", e),
-  );
+  await deleteKeys([
+    photo.storageKey,
+    photo.thumbKey,
+    photo.previewKey,
+    photo.gridKey ?? "",
+  ]).catch((e) => console.error("[photo delete] storage", e));
   await prisma.photo.delete({ where: { id: photo.id } });
+  // Deleting the cover photo leaves the album without a cover.
+  await prisma.album.updateMany({
+    where: { id: photo.albumId, coverPhotoId: photo.id },
+    data: { coverPhotoId: null },
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -23,11 +23,17 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const title = String(body?.title || "").trim();
   if (!title) return NextResponse.json({ error: "Título obrigatório." }, { status: 400 });
+  if (title.length > 120) {
+    return NextResponse.json(
+      { error: "O título deve ter no máximo 120 caracteres." },
+      { status: 400 },
+    );
+  }
 
   const album = await prisma.album.create({
     data: {
       title,
-      description: String(body?.description || "").trim() || null,
+      description: String(body?.description || "").trim().slice(0, 2000) || null,
       ownerId: userId,
     },
   });

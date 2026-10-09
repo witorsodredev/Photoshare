@@ -51,10 +51,10 @@ export default async function WorkspacePage() {
                 className="card group block overflow-hidden transition hover:border-blue-500/50"
               >
                 <div className="aspect-[4/3] bg-ink">
-                  {album.photos[0] ? (
+                  {album.coverPhotoId || album.photos[0] ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={`/api/image/${album.photos[0].id}?v=thumb`}
+                      src={`/api/image/${album.coverPhotoId ?? album.photos[0].id}?v=thumb`}
                       alt=""
                       className="h-full w-full object-cover"
                     />

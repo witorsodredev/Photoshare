@@ -10,8 +10,10 @@ import { deleteKeys } from "@/lib/s3";
 export async function deleteUserCompletely(userId: string) {
   const photos = await prisma.photo.findMany({
     where: { album: { ownerId: userId } },
-    select: { storageKey: true, thumbKey: true, previewKey: true },
+    select: { storageKey: true, thumbKey: true, previewKey: true, gridKey: true },
   });
-  await deleteKeys(photos.flatMap((p) => [p.storageKey, p.thumbKey, p.previewKey]));
+  await deleteKeys(
+    photos.flatMap((p) => [p.storageKey, p.thumbKey, p.previewKey, p.gridKey ?? ""]),
+  );
   await prisma.user.delete({ where: { id: userId } });
 }

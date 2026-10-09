@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import SiteFooter from "@/components/SiteFooter";
+import { serif } from "@/lib/fonts";
 
 export const metadata: Metadata = {
   title: "PhotoShare — portfólios e álbuns profissionais",
@@ -14,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={serif.variable}>
       <body className="flex min-h-screen flex-col font-sans antialiased">
         <div className="flex-1">{children}</div>
         <SiteFooter />

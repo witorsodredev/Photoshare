@@ -1,76 +1,39 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getPublicAlbum } from "@/lib/albums";
-import PublicGallery from "@/components/PublicGallery";
-import ReportButton from "@/components/ReportButton";
+import AlbumPresentation from "@/components/AlbumPresentation";
+import { toPresented } from "@/lib/presentation";
 import { captchaSiteKey } from "@/lib/captcha";
 
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
-  params: paramsP,
+  params,
 }: {
   params: Promise<{ token: string }>;
 }): Promise<Metadata> {
-  const params = await paramsP;
-  const album = await getPublicAlbum(params.token);
-  return { title: album ? `${album.title} — PhotoShare` : "Álbum não encontrado" };
+  const album = await getPublicAlbum((await params).token);
+  return {
+    title: album ? `${album.title} — ${album.owner.name}` : "Álbum não encontrado",
+    // Private client galleries must not end up in search engines.
+    robots: { index: false, follow: false },
+  };
 }
 
 export default async function PublicAlbumPage({
-  params: paramsP,
+  params,
 }: {
   params: Promise<{ token: string }>;
 }) {
-  const params = await paramsP;
-  const album = await getPublicAlbum(params.token);
+  const { token } = await params;
+  const album = await getPublicAlbum(token);
   if (!album) notFound();
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-ink-line pb-6">
-        <div>
-          <p className="text-xs uppercase tracking-wide text-gray-500">
-            Álbum de {album.owner.name}
-          </p>
-          <h1 className="mt-1 text-3xl font-bold">{album.title}</h1>
-          {album.description && (
-            <p className="mt-2 max-w-2xl text-sm text-gray-400">{album.description}</p>
-          )}
-          <p className="mt-2 text-sm text-gray-500">{album.photos.length} foto(s)</p>
-        </div>
-        {album.allowDownload && album.photos.length > 0 && (
-          <a
-            className="btn-primary"
-            href={`/api/public/${params.token}/download-all`}
-            download
-          >
-            Baixar álbum (.zip)
-          </a>
-        )}
-      </header>
-
-      <div className="mt-6">
-        {album.photos.length === 0 ? (
-          <p className="text-sm text-gray-500">Este álbum ainda não tem fotos.</p>
-        ) : (
-          <PublicGallery
-            token={params.token}
-            photos={album.photos.map((p) => ({
-              id: p.id,
-              filename: p.filename,
-              width: p.width,
-              height: p.height,
-            }))}
-            allowDownload={album.allowDownload}
-          />
-        )}
-      </div>
-
-      <footer className="mt-16 flex flex-col items-center gap-2 border-t border-ink-line py-6 text-xs text-gray-600">
-        <span>Compartilhado via PhotoShare</span>
-        <ReportButton token={params.token} captchaSiteKey={captchaSiteKey()} />
-      </footer>
-    </main>
+    <AlbumPresentation
+      album={toPresented(album)}
+      token={token}
+      captchaSiteKey={captchaSiteKey()}
+    />
   );
 }

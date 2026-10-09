@@ -5,7 +5,7 @@ import { legalInfo } from "@/lib/legal";
 export default function SiteFooter() {
   const l = legalInfo();
   return (
-    <footer className="border-t border-ink-line">
+    <footer className="site-footer border-t border-ink-line">
       <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-6 text-xs text-gray-500 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-0.5">
           <p className="text-gray-400">

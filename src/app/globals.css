@@ -44,3 +44,71 @@ body {
 .label {
   @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-gray-400;
 }
+
+/* ── Client-facing album pages (light by default, dark optional) ─────────── */
+
+.album-light {
+  --a-bg: #ffffff;
+  --a-fg: #1d1d1d;
+  --a-muted: #7a7a7a;
+  --a-line: #e7e7e7;
+  --a-soft: #f3f3f3;
+  --a-accent: #1d1d1d;
+  --a-accent-fg: #ffffff;
+  color-scheme: light;
+}
+
+.album-dark {
+  --a-bg: #0e0f11;
+  --a-fg: #f2f2f2;
+  --a-muted: #9a9a9a;
+  --a-line: #26282c;
+  --a-soft: #18191c;
+  --a-accent: #f2f2f2;
+  --a-accent-fg: #111111;
+  color-scheme: dark;
+}
+
+.album-light,
+.album-dark {
+  background: var(--a-bg);
+  color: var(--a-fg);
+}
+
+/* Minimal, letter-spaced buttons in the gallery style. */
+.a-btn {
+  @apply inline-flex items-center justify-center gap-2 border px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] transition disabled:opacity-50;
+  border-color: var(--a-line);
+  color: var(--a-fg);
+}
+.a-btn:hover {
+  border-color: var(--a-fg);
+}
+.a-btn-solid {
+  @apply a-btn;
+  background: var(--a-accent);
+  border-color: var(--a-accent);
+  color: var(--a-accent-fg);
+}
+.a-btn-solid:hover {
+  opacity: 0.88;
+}
+.a-link {
+  @apply inline-flex items-center gap-1.5 px-2 py-1.5 text-[11px] font-medium uppercase tracking-[0.18em] transition;
+  color: var(--a-fg);
+}
+.a-link:hover {
+  opacity: 0.6;
+}
+
+/* While a light album is on screen, the page and global footer follow it. */
+body:has(.album-light) {
+  background: #ffffff;
+}
+body:has(.album-light) .site-footer {
+  border-color: #e7e7e7;
+}
+body:has(.album-light) .site-footer,
+body:has(.album-light) .site-footer * {
+  color: #8a8a8a;
+}

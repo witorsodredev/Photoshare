@@ -18,9 +18,12 @@ type State =
 export default function SaveToDeviceButton({
   photos,
   className = "btn-ghost",
+  readyClassName = "btn-primary",
 }: {
   photos: SharePhoto[];
   className?: string;
+  /** Style of the second, "save now" step. */
+  readyClassName?: string;
 }) {
   const [supported, setSupported] = useState(false);
   const [state, setState] = useState<State>({ step: "idle" });
@@ -60,7 +63,7 @@ export default function SaveToDeviceButton({
   }
   if (state.step === "ready") {
     return (
-      <button className="btn-primary" onClick={() => save(state.files)}>
+      <button className={readyClassName} onClick={() => save(state.files)}>
         Salvar {n > 1 ? `${n} fotos` : "foto"} no celular
       </button>
     );

@@ -2,6 +2,7 @@ import { Readable } from "node:stream";
 import { getSessionUserId } from "@/lib/auth";
 import { canViewPhoto } from "@/lib/albums";
 import { getObject } from "@/lib/s3";
+import { gridKeyFor } from "@/lib/grid";
 
 export const runtime = "nodejs";
 
@@ -20,7 +21,9 @@ export async function GET(
       ? photo.storageKey
       : variant === "preview"
         ? photo.previewKey
-        : photo.thumbKey;
+        : variant === "grid"
+          ? await gridKeyFor(photo)
+          : photo.thumbKey;
 
   try {
     const obj = await getObject(key);
